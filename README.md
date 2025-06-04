@@ -32,8 +32,8 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/telegram-account-manager-bot.git
-   cd telegram-account-manager-bot
+   git clone https://github.com/mrVXBoT/Telegram-ID.git
+   cd Telegram-ID
    ```
 
 2. Install the required packages:
@@ -43,7 +43,7 @@
 
 3. Run the bot:
    ```bash
-   python telegram_account_manager_bot.py
+   python TG-ID.py
    ```
 
 ## 📖 Usage
