@@ -7,8 +7,9 @@ import re
 from telethon import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError
 from telethon.tl.functions.contacts import GetContactsRequest
-from telethon.tl.functions.messages import GetDialogsRequest
-from telethon.tl.types import InputPeerEmpty
+from telethon.tl.functions.messages import GetDialogsRequest, GetFullChatRequest, ExportChatInviteRequest
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.types import InputPeerEmpty, Chat, Channel, InputPeerChat
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters, ConversationHandler
 
@@ -197,6 +198,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                     [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                     [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                     [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                     [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                     [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -233,7 +236,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 )
                 
                 # Send contact count information
-                contact_info = f"Total contacts: {len(contacts.users)}\n\n"
+                total_contacts = len(contacts.users)
+                mutual_contacts = sum(1 for c in contacts.contacts if getattr(c, 'mutual', False))
+                contact_info = f"Total contacts: {total_contacts}\nMutual contacts: {mutual_contacts}\n\n"
                 
                 # Count contacts with different ID lengths
                 id_lengths = {7: 0, 8: 0, 9: 0, 10: 0, 11: 0}
@@ -265,6 +270,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                     [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                     [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                     [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                     [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                     [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -364,6 +371,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                         [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                         [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                         [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                         [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                         [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -394,6 +403,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                         [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                         [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                         [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                         [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                         [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -441,6 +452,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                         [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                         [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                         [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                         [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                         [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -461,6 +474,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                         [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                         [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                         [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                         [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                         [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -485,6 +500,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
                     [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
                     [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
                     [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
                     [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
                     [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -539,6 +556,135 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await query.edit_message_text(text="Session not active. Please select the account again.")
             return ConversationHandler.END
     
+    elif query.data.startswith('list_chats_'):
+        phone = query.data.replace('list_chats_', '')
+        if phone in active_sessions:
+            client = active_sessions[phone]
+            try:
+                # Fetch dialogs
+                dialogs = await client(GetDialogsRequest(
+                    offset_date=None,
+                    offset_id=0,
+                    offset_peer=InputPeerEmpty(),
+                    limit=100,
+                    hash=0
+                ))
+                chats = dialogs.chats
+                # Filter chats created by the user, preferring channels (supergroups/channels)
+                creator_chats = [chat for chat in chats if getattr(chat, 'creator', False)]
+                channel_chats = [c for c in creator_chats if isinstance(c, Channel)]
+                chat_chats = [c for c in creator_chats if isinstance(c, Chat)]
+                my_chats = channel_chats if channel_chats else chat_chats
+                chat_info = f"Account: {phone}\nYour created chats:\n"
+                for chat in my_chats:
+                    # Build invite or public link
+                    username = getattr(chat, 'username', None)
+                    if username:
+                        link = f"https://t.me/{username}"
+                    else:
+                        try:
+                            invite = await client(ExportChatInviteRequest(peer=chat))
+                            link = invite.link
+                        except Exception:
+                            raw_id = str(chat.id)
+                            if raw_id.startswith('-100'):
+                                link_id = raw_id[4:]
+                            elif raw_id.startswith('-'):
+                                link_id = raw_id[1:]
+                            else:
+                                link_id = raw_id
+                            link = f"https://t.me/c/{link_id}"
+                    # Determine creation year via earliest message
+                    try:
+                        msgs = await client.get_messages(chat, limit=1, reverse=True)
+                        year = msgs[0].date.year if msgs else 'Unknown'
+                    except Exception:
+                        year = 'Unknown'
+                    # Determine hidden history if available
+                    hidden = None
+                    try:
+                        if isinstance(chat, Channel):
+                            full = await client(GetFullChannelRequest(channel=chat))
+                            hidden = getattr(full.full_chat, 'hidden_prehistory', None)
+                        else:
+                            full = await client(GetFullChatRequest(chat_id=chat.id))
+                            hidden = getattr(full.full_chat, 'hidden_prehistory', None)
+                    except Exception:
+                        hidden = None
+                    # Map hidden flag to readable string
+                    if hidden is None:
+                        hidden_str = 'Unknown'
+                    elif hidden:
+                        hidden_str = 'Hidden'
+                    else:
+                        hidden_str = 'Visible'
+                    chat_info += f"{link} - Created: {year}, History: {hidden_str}\n"
+                keyboard = [
+                    [InlineKeyboardButton("Back to Account Actions", callback_data=f'select_{phone}')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text(
+                    text=chat_info,
+                    reply_markup=reply_markup
+                )
+                return ACCOUNT_ACTIONS
+            except Exception as e:
+                logger.error(f"Error listing chats: {e}")
+                await query.edit_message_text(text=f"Error listing chats: {str(e)}")
+                return ConversationHandler.END
+        else:
+            await query.edit_message_text(text="Session not active. Please select the account again.")
+            return ConversationHandler.END
+    
+    elif query.data.startswith('export_mutual_'):
+        phone = query.data.replace('export_mutual_', '')
+        if phone in active_sessions:
+            client = active_sessions[phone]
+            try:
+                contacts = await client(GetContactsRequest(hash=0))
+                mutual_ids = [c.user_id for c in contacts.contacts if getattr(c, 'mutual', False)]
+                mutual_users = [u for u in contacts.users if u.id in mutual_ids]
+                if mutual_users:
+                    vcf_content = create_vcf_from_contacts(mutual_users)
+                    vcf_filename = f"{phone}_mutual_contacts.vcf"
+                    with open(vcf_filename, 'w', encoding='utf-8') as f:
+                        f.write(vcf_content)
+                    with open(vcf_filename, 'rb') as f:
+                        await context.bot.send_document(
+                            chat_id=update.effective_user.id,
+                            document=f,
+                            filename=vcf_filename,
+                            caption=f"Exported {len(mutual_users)} mutual contacts"
+                        )
+                    os.remove(vcf_filename)
+                else:
+                    await context.bot.send_message(chat_id=update.effective_user.id, text="No mutual contacts found.")
+                    # Return to account actions
+                    keyboard = [
+                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
+                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
+                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
+                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
+                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
+                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
+                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
+                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
+                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
+                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await query.edit_message_text(text=f"Account: {phone}\nSelect next action:", reply_markup=reply_markup)
+                    return ACCOUNT_ACTIONS
+            except Exception as e:
+                logger.error(f"Error exporting mutual contacts: {e}")
+                await query.edit_message_text(text=f"Error exporting mutual contacts: {str(e)}")
+                return ConversationHandler.END
+        else:
+            await query.edit_message_text(text="Session not active. Please select the account again.")
+            return ConversationHandler.END
+    
     return ConversationHandler.END
 
 async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -587,6 +733,8 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
                 [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
                 [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
+                [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
+                [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
                 [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
                 [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
                 [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -652,6 +800,8 @@ async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
             [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
             [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
+            [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
+            [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
             [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
             [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
             [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -731,6 +881,8 @@ async def password_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
             [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
             [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
+            [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
+            [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
             [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
             [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
             [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
@@ -775,38 +927,34 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def main() -> None:
     """Start the bot."""
-    try:
-        # Create the Application
-        application = Application.builder().token("7886458486:AAGlBhLIfWG9naIV3ecZgc0wA3YhAKkf92o").build()
-        
-        # Add conversation handler
-        conv_handler = ConversationHandler(
-            entry_points=[
-                CommandHandler("start", start),
-                CallbackQueryHandler(button_handler)
-            ],
-            states={
-                PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
-                CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, code_handler)],
-                WAITING_FOR_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, password_handler)],
-                ACCOUNT_ACTIONS: [CallbackQueryHandler(button_handler)]
-            },
-            fallbacks=[CommandHandler("cancel", cancel)],
-            per_message=False  # Changed to False to fix the warning
-        )
-        
-        application.add_handler(conv_handler)
-        
-        # Add error handler
-        application.add_error_handler(error_handler)
-        
-        # Start the Bot
-        logger.critical("Starting bot...")
-        print("\033[1;32mDEV : VX | BoT STARTED $ join @l27_0\033[0m")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
-        
-    except Exception as e:
-        logger.error(f"Error in main: {e}")
+    # Create the Application
+    application = Application.builder().token("7464338818:AAHxs6U53SQX22H1CwgRRxXbSQM00O0X814").build()
+
+    # Add conversation handler
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(button_handler)
+        ],
+        states={
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
+            CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, code_handler)],
+            WAITING_FOR_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, password_handler)],
+            ACCOUNT_ACTIONS: [CallbackQueryHandler(button_handler)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False  # Changed to False to fix the warning
+    )
+    
+    application.add_handler(conv_handler)
+    
+    # Add error handler
+    application.add_error_handler(error_handler)
+    
+    # Start the Bot
+    logger.critical("Starting bot...")
+    print("\033[1;32mDEV : VX | BoT STARTED $ join @l27_0\033[0m")
+    application.run_polling()
 
 if __name__ == '__main__':
     main() 
