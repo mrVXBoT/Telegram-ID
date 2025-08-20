@@ -6,16 +6,17 @@ import vobject
 import re
 from telethon import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError
-from telethon.tl.functions.contacts import GetContactsRequest
+from telethon.tl.functions.contacts import GetContactsRequest, DeleteContactsRequest
 from telethon.tl.functions.messages import GetDialogsRequest, GetFullChatRequest, ExportChatInviteRequest
 from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon import functions
 from telethon.tl.types import InputPeerEmpty, Chat, Channel, InputPeerChat
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters, ConversationHandler
 
 # Enable logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.CRITICAL
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,25 @@ def save_user_data(data):
 
 # User data
 user_data = load_user_data()
+
+# Helper function to create account actions keyboard
+def create_account_actions_keyboard(phone):
+    """Create the standard account actions keyboard for a given phone number."""
+    return [
+        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
+        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
+        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
+        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
+        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
+        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
+        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
+        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
+        [InlineKeyboardButton("🗑️ Delete All Contacts", callback_data=f'delete_contacts_{phone}')],
+        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
+        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
+        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
+        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
+    ]
 
 # Telegram API credentials
 API_ID = 16208243
@@ -190,20 +210,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     active_sessions[phone] = client
                 
                 # Show account actions with separate buttons for each ID length
-                keyboard = [
-                    [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                    [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                    [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                    [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                    [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                    [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                    [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                    [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                    [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                    [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                ]
+                keyboard = create_account_actions_keyboard(phone)
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.edit_message_text(
                     text=f"Account: {phone}\nWhat would you like to do?",
@@ -262,20 +269,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     contact_info += "\n"
                 
                 # Return to account actions with updated keyboard
-                keyboard = [
-                    [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                    [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                    [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                    [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                    [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                    [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                    [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                    [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                    [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                    [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                ]
+                keyboard = create_account_actions_keyboard(phone)
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await query.edit_message_text(
@@ -363,20 +357,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         )
                     
                     # Return to account actions
-                    keyboard = [
-                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                    ]
+                    keyboard = create_account_actions_keyboard(phone)
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await context.bot.send_message(
@@ -395,20 +376,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     )
                     
                     # Return to account actions
-                    keyboard = [
-                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                    ]
+                    keyboard = create_account_actions_keyboard(phone)
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await context.bot.send_message(
@@ -444,20 +412,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 
                 if code_message:
                     # Return to account actions with updated keyboard
-                    keyboard = [
-                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                    ]
+                    keyboard = create_account_actions_keyboard(phone)
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await query.edit_message_text(
@@ -466,20 +421,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     )
                 else:
                     # Return to account actions with updated keyboard
-                    keyboard = [
-                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                    ]
+                    keyboard = create_account_actions_keyboard(phone)
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await query.edit_message_text(
@@ -492,20 +434,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             except Exception as e:
                 logger.error(f"Error getting code: {e}")
                 # Return to account actions with updated keyboard
-                keyboard = [
-                    [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                    [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                    [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                    [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                    [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                    [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                    [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                    [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                    [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                    [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                    [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                    [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                ]
+                keyboard = create_account_actions_keyboard(phone)
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await query.edit_message_text(
@@ -570,57 +499,292 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     hash=0
                 ))
                 chats = dialogs.chats
-                # Filter chats created by the user, preferring channels (supergroups/channels)
-                creator_chats = [chat for chat in chats if getattr(chat, 'creator', False)]
-                channel_chats = [c for c in creator_chats if isinstance(c, Channel)]
-                chat_chats = [c for c in creator_chats if isinstance(c, Chat)]
-                my_chats = channel_chats if channel_chats else chat_chats
-                chat_info = f"Account: {phone}\nYour created chats:\n"
-                for chat in my_chats:
-                    # Build invite or public link
-                    username = getattr(chat, 'username', None)
-                    if username:
-                        link = f"https://t.me/{username}"
-                    else:
+                
+                # Filter chats created by the user
+                all_creator_chats = [chat for chat in chats if getattr(chat, 'creator', False)]
+                
+                # Debug log all creator chats
+                logger.info(f"=== ALL CREATOR CHATS DEBUG ===")
+                for i, chat in enumerate(all_creator_chats):
+                    logger.info(f"Chat {i+1}: '{getattr(chat, 'title', 'No Title')}' | Type: {type(chat).__name__} | Creator: {getattr(chat, 'creator', False)} | Megagroup: {getattr(chat, 'megagroup', 'N/A')}")
+                
+                # Remove migrated chats to avoid duplicates
+                # Find all supergroups and their migrated_from_chat_id
+                migrated_chat_ids = set()
+                for chat in all_creator_chats:
+                    if isinstance(chat, Channel) and getattr(chat, 'megagroup', False):
                         try:
-                            invite = await client(ExportChatInviteRequest(peer=chat))
-                            link = invite.link
-                        except Exception:
-                            raw_id = str(chat.id)
-                            if raw_id.startswith('-100'):
-                                link_id = raw_id[4:]
-                            elif raw_id.startswith('-'):
-                                link_id = raw_id[1:]
-                            else:
-                                link_id = raw_id
-                            link = f"https://t.me/c/{link_id}"
-                    # Determine creation year via earliest message
-                    try:
-                        msgs = await client.get_messages(chat, limit=1, reverse=True)
-                        year = msgs[0].date.year if msgs else 'Unknown'
-                    except Exception:
-                        year = 'Unknown'
-                    # Determine hidden history if available
-                    hidden = None
-                    try:
-                        if isinstance(chat, Channel):
+                            # Get full info to find migrated_from_chat_id
                             full = await client(GetFullChannelRequest(channel=chat))
-                            hidden = getattr(full.full_chat, 'hidden_prehistory', None)
+                            if hasattr(full.full_chat, 'migrated_from_chat_id'):
+                                migrated_from_id = full.full_chat.migrated_from_chat_id
+                                if migrated_from_id:
+                                    migrated_chat_ids.add(migrated_from_id)
+                                    logger.info(f"Supergroup {chat.title} migrated from chat ID: {migrated_from_id}")
+                        except:
+                            pass
+                
+                # Filter out migrated chats
+                creator_chats = []
+                for chat in all_creator_chats:
+                    if isinstance(chat, Chat) and chat.id in migrated_chat_ids:
+                        logger.info(f"SKIPPING migrated chat: {getattr(chat, 'title', 'No Title')} (ID: {chat.id})")
+                        continue
+                    creator_chats.append(chat)
+                
+                logger.info(f"Final creator chats after removing migrated: {len(creator_chats)}")
+                
+                # Separate channels and groups
+                channels = []
+                groups = []
+                regular_chats = []
+                
+                for chat in creator_chats:
+                    if isinstance(chat, Channel):
+                        # Follow HV.py logic: megagroup=True means it's a supergroup
+                        if getattr(chat, 'megagroup', False):
+                            groups.append(chat)
+                            logger.info(f"Added to GROUPS: {getattr(chat, 'title', 'No Title')}")
                         else:
+                            channels.append(chat)
+                            logger.info(f"Added to CHANNELS: {getattr(chat, 'title', 'No Title')}")
+                    elif isinstance(chat, Chat):
+                        # This shouldn't happen after filtering, but keep as fallback
+                        logger.info(f"Found regular Chat: {getattr(chat, 'title', 'No Title')} - investigating if it's actually a group")
+                        regular_chats.append(chat)
+                        logger.info(f"Added to REGULAR CHATS: {getattr(chat, 'title', 'No Title')}")
+                
+                # Build formatted message
+                chat_info = f"📱 Account: {phone}\n\n"
+                
+                # Show Channels first
+                if channels:
+                    chat_info += "📺 「 کانال‌های شما / Your Channels 」\n\n"
+                    for i, channel in enumerate(channels, 1):
+                        # Build link
+                        username = getattr(channel, 'username', None)
+                        if username:
+                            link = f"https://t.me/{username}"
+                        else:
+                            try:
+                                invite = await client(ExportChatInviteRequest(peer=channel))
+                                link = invite.link
+                            except Exception:
+                                raw_id = str(channel.id)
+                                if raw_id.startswith('-100'):
+                                    link_id = raw_id[4:]
+                                else:
+                                    link_id = raw_id
+                                link = f"https://t.me/c/{link_id}"
+                        
+                        # Get creation date
+                        try:
+                            msgs = await client.get_messages(channel, limit=1, reverse=True)
+                            creation_date = msgs[0].date.strftime('%Y-%m-%d') if msgs else 'نامشخص'
+                            year = msgs[0].date.year if msgs else 'نامشخص'
+                        except Exception:
+                            creation_date = 'نامشخص'
+                            year = 'نامشخص'
+                        
+                        # Get history visibility for channels - Simple version
+                        hidden_str = '👁️ Visible / قابل مشاهده'
+                        try:
+                            full = await client(GetFullChannelRequest(channel=channel))
+                            
+                            # Check hidden_prehistory (main indicator)
+                            if hasattr(full.full_chat, 'hidden_prehistory'):
+                                hidden = full.full_chat.hidden_prehistory
+                                hidden_str = '🔒 Hidden / مخفی' if hidden else '👁️ Visible / قابل مشاهده'
+                                logger.info(f"Channel {channel.title} hidden_prehistory: {hidden}")
+                            
+                            # Check available_min_id as backup
+                            elif hasattr(full.full_chat, 'available_min_id'):
+                                min_id = full.full_chat.available_min_id
+                                if min_id is not None and min_id > 1:
+                                    hidden_str = '🔒 Hidden / مخفی'
+                                else:
+                                    hidden_str = '👁️ Visible / قابل مشاهده'
+                                    
+                        except Exception as e:
+                            logger.error(f"Error getting channel history for {channel.title}: {e}")
+                            hidden_str = '❓ Unknown / نامشخص'
+                        
+                        chat_info += f"{i}. 『 {channel.title} 』\n"
+                        chat_info += f"   🔗 Link: {link}\n"
+                        chat_info += f"   📅 تاریخ ساخت: {creation_date} (سال {year})\n"
+                        chat_info += f"   👁️ تاریخچه: {hidden_str}\n\n"
+                
+                # Show Groups/Supergroups
+                if groups:
+                    chat_info += "👥 「 گروه‌های شما / Your Groups 」\n\n"
+                    for i, group in enumerate(groups, 1):
+                        # Build link
+                        username = getattr(group, 'username', None)
+                        if username:
+                            link = f"https://t.me/{username}"
+                        else:
+                            try:
+                                invite = await client(ExportChatInviteRequest(peer=group))
+                                link = invite.link
+                            except Exception:
+                                raw_id = str(group.id)
+                                if raw_id.startswith('-100'):
+                                    link_id = raw_id[4:]
+                                else:
+                                    link_id = raw_id
+                                link = f"https://t.me/c/{link_id}"
+                        
+                        # Get creation date
+                        try:
+                            msgs = await client.get_messages(group, limit=1, reverse=True)
+                            creation_date = msgs[0].date.strftime('%Y-%m-%d') if msgs else 'نامشخص'
+                            year = msgs[0].date.year if msgs else 'نامشخص'
+                        except Exception:
+                            creation_date = 'نامشخص'
+                            year = 'نامشخص'
+                        
+                        # Get history visibility for groups - Simple version with detailed logging
+                        hidden_str = '👁️ Visible / قابل مشاهده'
+                        try:
+                            full = await client(GetFullChannelRequest(channel=group))
+                            
+                            # Detailed logging for debugging
+                            logger.info(f"=== ANALYZING GROUP: {group.title} ===")
+                            logger.info(f"Group ID: {group.id}")
+                            logger.info(f"Group username: {getattr(group, 'username', 'None')}")
+                            logger.info(f"Group megagroup: {getattr(group, 'megagroup', 'None')}")
+                            logger.info(f"Group creator: {getattr(group, 'creator', 'None')}")
+                            
+                            # Check all relevant attributes
+                            attrs = ['hidden_prehistory', 'available_min_id', 'migrated_from_chat_id', 'participants_hidden']
+                            for attr in attrs:
+                                value = getattr(full.full_chat, attr, 'NOT_FOUND')
+                                logger.info(f"  {attr}: {value}")
+                            
+                            # Check hidden_prehistory (main indicator)
+                            if hasattr(full.full_chat, 'hidden_prehistory'):
+                                hidden = full.full_chat.hidden_prehistory
+                                hidden_str = '🔒 Hidden / مخفی' if hidden else '👁️ Visible / قابل مشاهده'
+                                logger.info(f"RESULT for {group.title}: hidden_prehistory={hidden} -> {hidden_str}")
+                            
+                            # Check available_min_id as backup
+                            elif hasattr(full.full_chat, 'available_min_id'):
+                                min_id = full.full_chat.available_min_id
+                                if min_id is not None and min_id > 1:
+                                    hidden_str = '🔒 Hidden / مخفی'
+                                    logger.info(f"RESULT for {group.title}: available_min_id={min_id} > 1 -> Hidden")
+                                else:
+                                    hidden_str = '👁️ Visible / قابل مشاهده'
+                                    logger.info(f"RESULT for {group.title}: available_min_id={min_id} <= 1 -> Visible")
+                            else:
+                                logger.warning(f"NO ATTRIBUTE FOUND for {group.title} - defaulting to Visible")
+                                    
+                        except Exception as e:
+                            logger.error(f"Error getting group history for {group.title}: {e}")
+                            hidden_str = '❓ Unknown / نامشخص'
+                        
+                        chat_info += f"{i}. 『 {group.title} 』\n"
+                        chat_info += f"   🔗 Link: {link}\n"
+                        chat_info += f"   📅 تاریخ ساخت: {creation_date} (سال {year})\n"
+                        chat_info += f"   👁️ تاریخچه: {hidden_str}\n\n"
+                
+                # Show regular chats if any
+                if regular_chats:
+                    chat_info += "💬 「 چت‌های معمولی / Regular Chats 」\n\n"
+                    for i, chat in enumerate(regular_chats, 1):
+                        # Get creation date
+                        try:
+                            msgs = await client.get_messages(chat, limit=1, reverse=True)
+                            creation_date = msgs[0].date.strftime('%Y-%m-%d') if msgs else 'نامشخص'
+                            year = msgs[0].date.year if msgs else 'نامشخص'
+                        except Exception:
+                            creation_date = 'نامشخص'
+                            year = 'نامشخص'
+                        
+                        # Advanced check for regular chats - try to detect hidden history by message access
+                        hidden_str = '👁️ Visible / قابل مشاهده'
+                        try:
+                            # Detailed logging for debugging
+                            logger.info(f"=== ANALYZING REGULAR CHAT: {chat.title} ===")
+                            logger.info(f"Chat ID: {chat.id}")
+                            logger.info(f"Chat creator: {getattr(chat, 'creator', 'None')}")
+                            
+                            # Get full chat info
                             full = await client(GetFullChatRequest(chat_id=chat.id))
-                            hidden = getattr(full.full_chat, 'hidden_prehistory', None)
-                    except Exception:
-                        hidden = None
-                    # Map hidden flag to readable string
-                    if hidden is None:
-                        hidden_str = 'Unknown'
-                    elif hidden:
-                        hidden_str = 'Hidden'
-                    else:
-                        hidden_str = 'Visible'
-                    chat_info += f"{link} - Created: {year}, History: {hidden_str}\n"
+                            
+                            # Check if this chat has been migrated to a supergroup
+                            migrated_to = getattr(full.full_chat, 'migrated_to', None)
+                            logger.info(f"  migrated_to: {migrated_to if migrated_to else 'NOT_FOUND'}")
+                            
+                            if migrated_to:
+                                # This is a migrated chat, check the supergroup version
+                                try:
+                                    supergroup_full = await client(GetFullChannelRequest(channel=migrated_to))
+                                    if hasattr(supergroup_full.full_chat, 'hidden_prehistory'):
+                                        hidden = supergroup_full.full_chat.hidden_prehistory
+                                        hidden_str = '🔒 Hidden / مخفی' if hidden else '👁️ Visible / قابل مشاهده'
+                                        logger.info(f"RESULT for migrated {chat.title}: hidden_prehistory={hidden} -> {hidden_str}")
+                                    else:
+                                        logger.info(f"Migrated supergroup found but no hidden_prehistory attribute")
+                                except Exception as e:
+                                    logger.error(f"Error checking migrated supergroup for {chat.title}: {e}")
+                            else:
+                                # Try alternative method: check message access patterns
+                                try:
+                                    # Try to get messages from the beginning
+                                    first_messages = await client.get_messages(chat, limit=5, reverse=True)
+                                    recent_messages = await client.get_messages(chat, limit=5)
+                                    
+                                    if first_messages and recent_messages:
+                                        first_id = first_messages[0].id if first_messages else 0
+                                        recent_id = recent_messages[0].id if recent_messages else 0
+                                        
+                                        logger.info(f"Message analysis for {chat.title}:")
+                                        logger.info(f"  First accessible message ID: {first_id}")
+                                        logger.info(f"  Recent message ID: {recent_id}")
+                                        
+                                        # If first message ID is significantly higher than 1, might indicate hidden history
+                                        if first_id > 10:  # threshold for detecting gaps
+                                            logger.info(f"Gap detected: first_id={first_id} > 10, might be hidden")
+                                            # Additional check: try to access message ID 1
+                                            try:
+                                                first_msg = await client.get_messages(chat, ids=[1])
+                                                if not first_msg or not first_msg[0]:
+                                                    hidden_str = '🔒 Hidden / مخفی'
+                                                    logger.info(f"RESULT for {chat.title}: Cannot access message 1 -> Hidden")
+                                                else:
+                                                    logger.info(f"Can access message 1 -> Visible")
+                                            except:
+                                                hidden_str = '🔒 Hidden / مخفی'
+                                                logger.info(f"RESULT for {chat.title}: Error accessing message 1 -> Hidden")
+                                        else:
+                                            logger.info(f"No significant gap detected -> Visible")
+                                    else:
+                                        logger.info(f"No messages found or accessible")
+                                        
+                                except Exception as e:
+                                    logger.error(f"Error analyzing messages for {chat.title}: {e}")
+                            
+                            # Check other attributes
+                            attrs = ['participants_count', 'admins_count']
+                            for attr in attrs:
+                                value = getattr(full.full_chat, attr, 'NOT_FOUND')
+                                logger.info(f"  {attr}: {value}")
+                                
+                        except Exception as e:
+                            logger.error(f"Error getting regular chat history for {chat.title}: {e}")
+                            logger.info(f"FALLBACK for {chat.title}: Setting to Visible (default for regular chats)")
+                        
+                        chat_info += f"{i}. 『 {chat.title} 』\n"
+                        chat_info += f"   📅 تاریخ ساخت: {creation_date} (سال {year})\n"
+                        chat_info += f"   👁️ تاریخچه: {hidden_str}\n\n"
+                
+                if not creator_chats:
+                    chat_info += "❌ هیچ کانال، گروه یا چتی که مالک آن باشید پیدا نشد.\n"
+                    chat_info += "❌ No channels, groups or chats found that you own."
+                
                 keyboard = [
-                    [InlineKeyboardButton("Back to Account Actions", callback_data=f'select_{phone}')]
+                    [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.edit_message_text(
@@ -660,20 +824,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 else:
                     await context.bot.send_message(chat_id=update.effective_user.id, text="No mutual contacts found.")
                     # Return to account actions
-                    keyboard = [
-                        [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone}')],
-                        [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone}')],
-                        [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone}')],
-                        [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone}')],
-                        [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone}')],
-                        [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone}')],
-                        [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone}')],
-                        [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone}')],
-                        [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone}')],
-                        [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone}')],
-                        [InlineKeyboardButton("Logout", callback_data=f'logout_{phone}')],
-                        [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-                    ]
+                    keyboard = create_account_actions_keyboard(phone)
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     await query.edit_message_text(text=f"Account: {phone}\nSelect next action:", reply_markup=reply_markup)
                     return ACCOUNT_ACTIONS
@@ -681,6 +832,148 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 logger.error(f"Error exporting mutual contacts: {e}")
                 await query.edit_message_text(text=f"Error exporting mutual contacts: {str(e)}")
                 return ConversationHandler.END
+        else:
+            await query.edit_message_text(text="Session not active. Please select the account again.")
+            return ConversationHandler.END
+    
+    elif query.data.startswith('delete_contacts_'):
+        phone = query.data.replace('delete_contacts_', '')
+        if phone in active_sessions:
+            client = active_sessions[phone]
+            try:
+                # Get all contacts first
+                contacts = await client(GetContactsRequest(hash=0))
+                
+                if not contacts.users:
+                    await query.edit_message_text(
+                        text=f"📱 Account: {phone}\n\n❌ هیچ مخاطبی برای حذف پیدا نشد.\n❌ No contacts found to delete.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
+                        ])
+                    )
+                    return ACCOUNT_ACTIONS
+                
+                total_contacts = len(contacts.users)
+                
+                # Show confirmation message first
+                await query.edit_message_text(
+                    text=f"📱 Account: {phone}\n\n"
+                         f"⚠️ هشدار! شما در حال حذف کردن {total_contacts} مخاطب هستید.\n"
+                         f"⚠️ Warning! You are about to delete {total_contacts} contacts.\n\n"
+                         f"آیا مطمئن هستید؟ / Are you sure?",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("✅ بله، همه را حذف کن / Yes, Delete All", callback_data=f'confirm_delete_{phone}')],
+                        [InlineKeyboardButton("❌ انصراف / Cancel", callback_data=f'select_{phone}')]
+                    ])
+                )
+                return ACCOUNT_ACTIONS
+                
+            except Exception as e:
+                logger.error(f"Error preparing to delete contacts: {e}")
+                await query.edit_message_text(
+                    text=f"❌ خطا در آماده‌سازی حذف مخاطبین: {str(e)}\n❌ Error preparing to delete contacts: {str(e)}",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
+                    ])
+                )
+                return ACCOUNT_ACTIONS
+        else:
+            await query.edit_message_text(text="Session not active. Please select the account again.")
+            return ConversationHandler.END
+    
+    elif query.data.startswith('confirm_delete_'):
+        phone = query.data.replace('confirm_delete_', '')
+        if phone in active_sessions:
+            client = active_sessions[phone]
+            try:
+                # Get all contacts
+                contacts = await client(GetContactsRequest(hash=0))
+                
+                if not contacts.users:
+                    await query.edit_message_text(
+                        text=f"📱 Account: {phone}\n\n❌ هیچ مخاطبی برای حذف پیدا نشد.\n❌ No contacts found to delete.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
+                        ])
+                    )
+                    return ACCOUNT_ACTIONS
+                
+                total_contacts = len(contacts.users)
+                
+                # Update message to show deletion progress
+                await query.edit_message_text(
+                    text=f"📱 Account: {phone}\n\n"
+                         f"🔄 در حال حذف {total_contacts} مخاطب...\n"
+                         f"🔄 Deleting {total_contacts} contacts...\n\n"
+                         f"لطفاً منتظر بمانید... / Please wait..."
+                )
+                
+                # Prepare user IDs for deletion
+                user_ids = [user.id for user in contacts.users]
+                deleted_count = 0
+                failed_count = 0
+                
+                # Delete contacts in batches of 100 (Telegram API limit)
+                batch_size = 100
+                for i in range(0, len(user_ids), batch_size):
+                    batch = user_ids[i:i+batch_size]
+                    try:
+                        # Use DeleteContactsRequest to delete contacts
+                        await client(DeleteContactsRequest(id=batch))
+                        deleted_count += len(batch)
+                        
+                        # Update progress
+                        progress = (i + len(batch)) * 100 // len(user_ids)
+                        await query.edit_message_text(
+                            text=f"📱 Account: {phone}\n\n"
+                                 f"🔄 پیشرفت: {progress}% ({deleted_count}/{total_contacts})\n"
+                                 f"🔄 Progress: {progress}% ({deleted_count}/{total_contacts})\n\n"
+                                 f"در حال حذف مخاطبین... / Deleting contacts..."
+                        )
+                        
+                        # Small delay between batches to avoid rate limiting
+                        await asyncio.sleep(1)
+                        
+                    except Exception as batch_error:
+                        logger.error(f"Error deleting batch: {batch_error}")
+                        failed_count += len(batch)
+                
+                # Final result
+                success_count = deleted_count
+                result_text = (
+                    f"📱 Account: {phone}\n\n"
+                    f"✅ عملیات حذف مخاطبین تکمیل شد!\n"
+                    f"✅ Contact deletion completed!\n\n"
+                    f"📊 نتیجه / Result:\n"
+                    f"🗑️ حذف شده: {success_count}\n"
+                    f"❌ ناموفق: {failed_count}\n"
+                    f"📊 کل: {total_contacts}\n\n"
+                    f"🗑️ Deleted: {success_count}\n"
+                    f"❌ Failed: {failed_count}\n"
+                    f"📊 Total: {total_contacts}"
+                )
+                
+                keyboard = [
+                    [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    text=result_text,
+                    reply_markup=reply_markup
+                )
+                
+                return ACCOUNT_ACTIONS
+                
+            except Exception as e:
+                logger.error(f"Error deleting contacts: {e}")
+                await query.edit_message_text(
+                    text=f"❌ خطا در حذف مخاطبین: {str(e)}\n❌ Error deleting contacts: {str(e)}",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔙 بازگشت به عملیات اکانت", callback_data=f'select_{phone}')]
+                    ])
+                )
+                return ACCOUNT_ACTIONS
         else:
             await query.edit_message_text(text="Session not active. Please select the account again.")
             return ConversationHandler.END
@@ -725,20 +1018,7 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             user_data[user_id]['accounts'][phone_number] = {'added_at': str(update.message.date)}
             save_user_data(user_data)
             
-            keyboard = [
-                [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone_number}')],
-                [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone_number}')],
-                [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone_number}')],
-                [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone_number}')],
-                [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
-                [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
-                [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
-                [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
-                [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
-                [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
-                [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
-                [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-            ]
+            keyboard = create_account_actions_keyboard(phone_number)
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
                 text=f"Account {phone_number} is already authorized!",
@@ -792,20 +1072,7 @@ async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         del pending_auth[user_id]
         
         # Show account actions with separate buttons for each ID length
-        keyboard = [
-            [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone_number}')],
-            [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone_number}')],
-            [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone_number}')],
-            [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone_number}')],
-            [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
-            [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
-            [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
-            [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
-            [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
-            [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
-            [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
-            [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-        ]
+        keyboard = create_account_actions_keyboard(phone_number)
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
@@ -873,20 +1140,7 @@ async def password_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         del pending_auth[user_id]
         
         # Show account actions with separate buttons for each ID length
-        keyboard = [
-            [InlineKeyboardButton("Extract 7 Digit IDs", callback_data=f'extract_7_{phone_number}')],
-            [InlineKeyboardButton("Extract 8 Digit IDs", callback_data=f'extract_8_{phone_number}')],
-            [InlineKeyboardButton("Extract 9 Digit IDs", callback_data=f'extract_9_{phone_number}')],
-            [InlineKeyboardButton("Extract 7-9 Digit IDs", callback_data=f'extract_7to9_{phone_number}')],
-            [InlineKeyboardButton("Extract 10 Digit IDs", callback_data=f'extract_10_{phone_number}')],
-            [InlineKeyboardButton("Extract 11 Digit IDs", callback_data=f'extract_11_{phone_number}')],
-            [InlineKeyboardButton("Check All Contacts", callback_data=f'check_contacts_{phone_number}')],
-            [InlineKeyboardButton("Export Mutual Contacts", callback_data=f'export_mutual_{phone_number}')],
-            [InlineKeyboardButton("List Chats", callback_data=f'list_chats_{phone_number}')],
-            [InlineKeyboardButton("Get Latest Code", callback_data=f'get_code_{phone_number}')],
-            [InlineKeyboardButton("Logout", callback_data=f'logout_{phone_number}')],
-            [InlineKeyboardButton("Back to Account List", callback_data='list_accounts')]
-        ]
+        keyboard = create_account_actions_keyboard(phone_number)
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
@@ -928,7 +1182,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 def main() -> None:
     """Start the bot."""
     # Create the Application
-    application = Application.builder().token("7464338818:AAHxs6U53SQX22H1CwgRRxXbSQM00O0X814").build()
+    application = Application.builder().token("token-bezar").build()
 
     # Add conversation handler
     conv_handler = ConversationHandler(
