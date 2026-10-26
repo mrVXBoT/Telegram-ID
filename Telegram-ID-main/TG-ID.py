@@ -1,4 +1,8 @@
 import os
+import sys
+
+# Ensure working directory is the script directory
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 import logging
 import json
 import asyncio
@@ -108,37 +112,57 @@ def create_vcf_from_contacts(contacts):
     return vcf_content
 
 # Command handlers
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send a message when the command /start is issued."""
     try:
+        user_id = str(update.effective_user.id)
+        if user_id in pending_auth:
+            try:
+                client = pending_auth[user_id].get('client')
+                if client and client.is_connected():
+                    await client.disconnect()
+            except Exception:
+                pass
+            del pending_auth[user_id]
+
         keyboard = [
             [InlineKeyboardButton("Add Account", callback_data='add_account')],
             [InlineKeyboardButton("List Accounts", callback_data='list_accounts')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Send a new message instead of editing
+        chat_id = update.effective_chat.id if update.effective_chat else update.effective_user.id
         await context.bot.send_message(
-            chat_id=update.effective_chat.id,
+            chat_id=chat_id,
             text='Welcome to Telegram Account Manager Bot!\n\n'
                  'Use this bot to manage your Telegram accounts, extract contacts, and handle authentication codes.',
             reply_markup=reply_markup
         )
-        logger.info(f"Start command received from user {update.effective_user.id}")
+        logger.info(f"Start command received from user {user_id}")
     except Exception as e:
         logger.error(f"Error in start command: {e}")
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="An error occurred. Please try again."
-        )
+        if update.effective_chat:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="An error occurred. Please try again."
+            )
+    return ConversationHandler.END
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle button presses."""
     query = update.callback_query
     await query.answer()
     
-    if query.data == 'add_account':
-        await query.edit_message_text(text="Please send your phone number in international format (e.g., +989123456789)")
+    if query.data == 'cancel_auth':
+        return await cancel(update, context)
+        
+    elif query.data == 'add_account':
+        keyboard = [[InlineKeyboardButton("🔙 Cancel / انصراف", callback_data='cancel_auth')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            text="Please send your phone number in international format (e.g., +989123456789):",
+            reply_markup=reply_markup
+        )
         return PHONE
     
     elif query.data == 'list_accounts':
@@ -1027,11 +1051,18 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             return ConversationHandler.END
         
         # Send code request
-        await client.send_code_request(phone_number)
-        pending_auth[user_id] = {'phone': phone_number, 'client': client}
+        sent_code = await client.send_code_request(phone_number)
+        pending_auth[user_id] = {
+            'phone': phone_number,
+            'client': client,
+            'phone_code_hash': getattr(sent_code, 'phone_code_hash', None)
+        }
         
+        keyboard = [[InlineKeyboardButton("❌ Cancel / انصراف", callback_data='cancel_auth')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "Verification code sent! Please enter the code you received:"
+            f"Verification code sent to {phone_number}!\nPlease enter the code you received (or send /cancel to abort):",
+            reply_markup=reply_markup
         )
         return CODE
     
@@ -1042,18 +1073,23 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle verification code input."""
-    code = update.message.text.strip()
+    raw_code = update.message.text.strip()
     user_id = str(update.effective_user.id)
     
     if user_id not in pending_auth:
-        await update.message.reply_text("Session expired. Please start over.")
+        await update.message.reply_text("Session expired. Please send /start to begin again.")
         return ConversationHandler.END
     
+    code = re.sub(r'[\s-]', '', raw_code)
     phone_number = pending_auth[user_id]['phone']
     client = pending_auth[user_id]['client']
+    phone_code_hash = pending_auth[user_id].get('phone_code_hash')
     
     try:
-        await client.sign_in(phone_number, code)
+        if phone_code_hash:
+            await client.sign_in(phone_number, code, phone_code_hash=phone_code_hash)
+        else:
+            await client.sign_in(phone_number, code)
         
         # Store the active session
         active_sessions[phone_number] = client
@@ -1164,8 +1200,47 @@ async def password_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel and end the conversation."""
-    await update.message.reply_text('Operation cancelled.')
+    user_id = str(update.effective_user.id)
+    if user_id in pending_auth:
+        try:
+            client = pending_auth[user_id].get('client')
+            if client and client.is_connected():
+                await client.disconnect()
+        except Exception:
+            pass
+        del pending_auth[user_id]
+        
+    keyboard = [
+        [InlineKeyboardButton("Add Account", callback_data='add_account')],
+        [InlineKeyboardButton("List Accounts", callback_data='list_accounts')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(
+            'Operation cancelled. Choose an option:',
+            reply_markup=reply_markup
+        )
+    elif update.message:
+        await update.message.reply_text(
+            'Operation cancelled. Choose an option:',
+            reply_markup=reply_markup
+        )
     return ConversationHandler.END
+
+async def default_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle any unhandled messages."""
+    if update.message:
+        keyboard = [
+            [InlineKeyboardButton("Add Account", callback_data='add_account')],
+            [InlineKeyboardButton("List Accounts", callback_data='list_accounts')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            'Please send /start to open the menu or select an option below:',
+            reply_markup=reply_markup
+        )
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors."""
@@ -1182,7 +1257,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 def main() -> None:
     """Start the bot."""
     # Create the Application
-    application = Application.builder().token("token-bezar").build()
+    BOT_TOKEN = os.getenv("BOT_TOKEN", "8619968352:AAEFW0ui0QkXX9SKzPztPSzzzN7nourBxo4")
+    application = Application.builder().token(BOT_TOKEN).build()
 
     # Add conversation handler
     conv_handler = ConversationHandler(
@@ -1191,16 +1267,41 @@ def main() -> None:
             CallbackQueryHandler(button_handler)
         ],
         states={
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)],
-            CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, code_handler)],
-            WAITING_FOR_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, password_handler)],
-            ACCOUNT_ACTIONS: [CallbackQueryHandler(button_handler)]
+            PHONE: [
+                CommandHandler("start", start),
+                CommandHandler("cancel", cancel),
+                CallbackQueryHandler(button_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, phone_handler)
+            ],
+            CODE: [
+                CommandHandler("start", start),
+                CommandHandler("cancel", cancel),
+                CallbackQueryHandler(button_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, code_handler)
+            ],
+            WAITING_FOR_CODE: [
+                CommandHandler("start", start),
+                CommandHandler("cancel", cancel),
+                CallbackQueryHandler(button_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, password_handler)
+            ],
+            ACCOUNT_ACTIONS: [
+                CommandHandler("start", start),
+                CommandHandler("cancel", cancel),
+                CallbackQueryHandler(button_handler)
+            ]
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=False  # Changed to False to fix the warning
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start),
+            CallbackQueryHandler(button_handler)
+        ],
+        allow_reentry=True,
+        per_message=False
     )
     
     application.add_handler(conv_handler)
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, default_message_handler))
     
     # Add error handler
     application.add_error_handler(error_handler)

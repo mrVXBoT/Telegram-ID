@@ -1,0 +1,39 @@
+# Environment and sensitive credentials
+.env
+.env.*
+!.env.example
+
+# Telegram session files (contain live MTProto authorization keys)
+*.session
+*.session-journal
+sessions/
+test_sessions/
+Telegram-ID-main/sessions/
+
+# SQLite databases and journals
+data/*.db
+data/*.db-wal
+data/*.db-shm
+*.db
+*.sqlite3
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and exports
+*.log
+exports/
+*.vcf
+
+# OS and agent artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.agents/

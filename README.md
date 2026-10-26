@@ -1,78 +1,97 @@
-# Telegram Account Manager Bot
+# Telegram Account Manager & Contact Extractor Bot
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![Telegram](https://img.shields.io/badge/Telegram-Join%20Channel-blue)](https://t.me/l27_0)
+A professional, high-performance Telegram Account Manager and Contact Extractor Bot refactored with a modern modular architecture, asynchronous SQLite persistence, in-place UI message editing, and comprehensive automated test coverage.
 
-<p align="center">
-  <img src="https://img.icons8.com/?size=100&id=46735&format=png&color=000000" alt="Telegram Logo" width="100" height="100">
-</p>
+---
 
-<p align="center">
-  A powerful Telegram bot to manage multiple accounts, extract contacts by ID length, and handle authentication codes with ease.
-</p>
+## 🌟 Key Features
 
-## ✨ Features
+- **Multi-Account MTProto Lifecycle**: Add, authenticate, and manage multiple Telegram accounts concurrently with Telethon session isolation, proper 2FA handling, and clean disconnects.
+- **In-Place UI Flow (Zero Chat Clutter)**: The bot maintains a single living prompt message in the chat (`edit_message_text`), instantly deleting sensitive user inputs (phone numbers, SMS codes, passwords) to protect user privacy.
+- **Contact Extraction & Filtering**:
+  - Filter contacts by ID length: 7, 8, 9, 10, and 11 digits.
+  - Bulk extraction for legacy accounts (7 to 9 digits).
+  - Mutual contacts extraction (contacts where both parties have each other's number).
+  - In-memory streaming VCF (vCard 3.0) file generation without temporary disk clutter.
+- **Creator Chats & Channel Inventory**: Fetch all channels, supergroups, and groups owned by the account with invite links, creation dates, and history visibility.
+- **Official Telegram Code Retrieval**: Automatically read login authentication codes received from the official Telegram service peer (`777000`).
+- **Batch Contact Deletion**: Remove all contacts in batches with real-time progress percentage updates and error recovery.
+- **Bilingual Interface**: Clean, balanced Persian and English output across all operational summaries, menus, and error messages.
+- **Asynchronous SQLite Database**: ACID transactions via `aiosqlite`, Write-Ahead Logging (WAL), foreign keys, and automatic legacy JSON data migration.
 
-- **Multi-Account Management**: Add and manage multiple Telegram accounts seamlessly.
-- **Contact Extraction**: Extract contacts with specific ID digit lengths (7 to 11 digits).
-- **Bulk Extraction**: Extract contacts with IDs ranging from 7-9 digits in a single operation.
-- **VCF Export**: Save extracted contacts as VCF files for easy import.
-- **Authentication Code Retrieval**: Fetch the latest Telegram authentication codes.
-- **User-Friendly Interface**: Intuitive inline keyboard menus for all operations.
+---
 
-## 🚀 Getting Started
+## 📁 Architecture & Package Structure
 
-### Prerequisites
+```
+├── main.py                  # Bot entry point and lifecycle orchestration
+├── config/                  # Pydantic settings loading from .env
+├── database/                # Async SQLite connection, repositories, models, migration
+├── services/                # Telethon session manager, auth, contact & chat services
+├── bot/                     # python-telegram-bot v22 handlers, in-place helpers, UI
+│   ├── handlers/            # Start, auth conversation, account menu, contact & chat handlers
+│   ├── helpers.py           # In-place prompt editing and safe message deletion
+│   ├── keyboards.py         # Concise, non-truncating inline keyboards
+│   └── messages.py          # Bilingual message templates and report formatters
+├── utils/                   # Contact filtering, phone sanitization, streaming VCF
+├── tests/                   # 670 automated unit, integration, and e2e tests
+├── .env.example             # Configuration template
+└── requirements.txt         # Production dependencies
+```
 
-- Python 3.8 or higher
-- Telegram Bot Token (Get it from [BotFather](https://t.me/BotFather))
+---
 
-### Installation
+## 🚀 Quick Start
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/telegram-account-manager-bot.git
-   cd telegram-account-manager-bot
-   ```
+### 1. Clone & Install Dependencies
 
-2. Install the required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+git clone https://github.com/mrvxbot/Telegram-ID.git
+cd Telegram-ID
+pip install -r requirements.txt
+```
 
-3. Run the bot:
-   ```bash
-   python telegram_account_manager_bot.py
-   ```
+### 2. Configure Environment
 
-## 📖 Usage
+Copy `.env.example` to `.env` and fill in your credentials:
 
-1. Start the bot by sending `/start` command.
-2. Add a Telegram account using the "Add Account" button.
-3. Enter your phone number in international format (e.g., +989123456789).
-4. Enter the verification code received from Telegram.
-5. Use the menu to extract contacts, get codes, or manage accounts.
+```bash
+cp .env.example .env
+```
 
-## 🛠️ Customization
+```ini
+API_ID=your_telegram_api_id
+API_HASH=your_telegram_api_hash
+BOT_TOKEN=your_botfather_token
+DATABASE_PATH=data/bot.db
+SESSIONS_DIR=sessions
+```
 
-- **API Credentials**: Update `API_ID` and `API_HASH` in `telegram_account_manager_bot.py` with your own Telegram API credentials.
-- **Bot Token**: Replace the token in the `main()` function with your bot's token from BotFather.
+### 3. Run Automated Tests
 
-## 📜 License
+```bash
+python -m pytest
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### 4. Start the Bot
 
-## 🤝 Contributing
+```bash
+python main.py
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+---
 
-## 📞 Support
+## 🧪 Verification & Test Suite
 
-Join our Telegram channel for support and updates:
+The project includes 670 automated tests covering:
+- In-place message editing and user input message deletion (`tests/bot/test_inplace_editing.py`)
+- Full conversation and authentication workflows with 2FA (`tests/bot/test_conversation_flow.py`)
+- Contact filtering, streaming VCF generation, and phone sanitization (`tests/unit/`)
+- Concurrent session management and resource locking under stress (`tests/services/`)
+- End-to-end full lifecycle simulation (`tests/e2e/test_full_lifecycle.py`)
 
-[![Telegram Channel](https://img.shields.io/badge/Telegram-Join%20Channel-blue)](https://t.me/l27_0)
+---
 
-<p align="center">
-  Developed with ❤️ by VX Team
-</p> 
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
